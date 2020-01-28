@@ -462,7 +462,7 @@ class WP_Object_Cache {
 		$offset = (int) $offset;
 
 		// If this isn't a persistant group, we have to sort this out ourselves, grumble grumble.
-		if ( ! $this->_should_persist( $group ) ) {
+		if ( ! $this->_should_persist( $group, $key ) ) {
 			$existing = $this->_get_internal( $key, $group );
 			if ( empty( $existing ) || ! is_numeric( $existing ) ) {
 				$existing = 0;
@@ -521,7 +521,7 @@ class WP_Object_Cache {
 			return false;
 		}
 
-		if ( $this->_should_persist( $group ) ) {
+		if ( $this->_should_persist( $group, $key ) ) {
 			if ( $this->_should_use_redis_hashes( $group ) ) {
 				$redis_safe_group = $this->_key( '', $group );
 				$result           = $this->_call_redis( 'hDel', $redis_safe_group, $key );
@@ -614,7 +614,7 @@ class WP_Object_Cache {
 
 		// Not a persistent group, so don't try Redis if the value doesn't exist
 		// internally
-		if ( ! $this->_should_persist( $group ) ) {
+		if ( ! $this->_should_persist( $group, $key ) ) {
 			$this->cache_misses += 1;
 			$found               = false;
 			return false;
@@ -666,7 +666,7 @@ class WP_Object_Cache {
 		$offset = (int) $offset;
 
 		// If this isn't a persistant group, we have to sort this out ourselves, grumble grumble.
-		if ( ! $this->_should_persist( $group ) ) {
+		if ( ! $this->_should_persist( $group, $key ) ) {
 			$existing = $this->_get_internal( $key, $group );
 			if ( empty( $existing ) || ! is_numeric( $existing ) ) {
 				$existing = 1;
@@ -764,7 +764,7 @@ class WP_Object_Cache {
 
 		$this->_set_internal( $key, $group, $data );
 
-		if ( ! $this->_should_persist( $group ) ) {
+		if ( ! $this->_should_persist( $group, $key, $data ) ) {
 			return true;
 		}
 
@@ -842,7 +842,7 @@ class WP_Object_Cache {
 			return true;
 		}
 
-		if ( ! $this->_should_persist( $group ) ) {
+		if ( ! $this->_should_persist( $group, $key ) ) {
 			return false;
 		}
 
@@ -961,11 +961,15 @@ class WP_Object_Cache {
 	/**
 	 * Does this group use persistent storage?
 	 *
-	 * @param  string $group Cache group.
-	 * @return bool        true if the group is persistent, false if not.
+	 * @param  string $group    Cache group.
+	 * @param  int|string $key  What to call the contents in the cache
+	 * @param  mixed $data      The contents to store in the cache
+	 * @return bool true if the group/key/data combination is persistent, false if not.
 	 */
-	protected function _should_persist( $group ) {
-		return empty( $this->non_persistent_groups[ $group ] );
+	protected function _should_persist( $group, $key = null, $data = null) {
+		$should_persist = empty( $this->non_persistent_groups[ $group ] );
+
+		return apply_filters( 'wp_redis_should_persist', $should_persist, $group, $key, $data );
 	}
 
 	/**
